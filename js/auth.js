@@ -3,7 +3,7 @@
 
 import { supabase } from "./supabase-client.js";
 
-const PENDING_PROFILE_KEY = "aaharlink_pending_profile";
+const PENDING_PROFILE_KEY = "foodbridge_pending_profile";
 
 function savePendingProfile(email, profile) {
   sessionStorage.setItem(PENDING_PROFILE_KEY, JSON.stringify({ email, ...profile }));

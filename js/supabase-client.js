@@ -14,7 +14,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // auth in localStorage, which makes logging in as an organization in one tab
 // replace the supplier session in every other tab. sessionStorage survives
 // navigation/reloads in this tab but is not shared with separately opened tabs.
-const AUTH_TAB_ID_KEY = "aaharlink_auth_tab_id";
+const AUTH_TAB_ID_KEY = "foodbridge_auth_tab_id";
 let authTabId = sessionStorage.getItem(AUTH_TAB_ID_KEY);
 if (!authTabId) {
   authTabId = crypto.randomUUID();
