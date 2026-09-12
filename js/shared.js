@@ -83,7 +83,7 @@ async function renderHeader(profile) {
 
   header.innerHTML = `
     <div class="container">
-      <a class="brand" href="${prefix}index.html">Aahar<span>Link</span></a>
+      <a class="brand" href="${prefix}index.html">Food<span>Bridge</span></a>
       <button class="nav-toggle" id="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false">☰</button>
       <nav class="site-nav" id="site-nav" aria-label="Main navigation">
         ${buildNavLinks(role, prefix)}
