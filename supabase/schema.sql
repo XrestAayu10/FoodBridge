@@ -1,5 +1,5 @@
 -- =============================================================================
--- AaharLink — Supabase schema, Row Level Security policies, and seed data
+-- FoodBridge — Supabase schema, Row Level Security policies, and seed data
 -- Run this whole file in the Supabase dashboard: SQL Editor > New query > Run.
 -- =============================================================================
 

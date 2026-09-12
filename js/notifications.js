@@ -86,7 +86,7 @@ export async function sendNotification({ userId, type, templateId, templateParam
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
       throw new Error(`A valid recipient email is missing for "${type}".`);
     }
-    // Support both the AaharLink variables and EmailJS's default Contact Us
+    // Support both the FoodBridge variables and EmailJS's default Contact Us
     // template, whose To/Reply-To fields commonly reference `email`.
     const partnerEmail = String(templateParams?.partner_email || "").trim().toLowerCase();
     const replyTo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(partnerEmail) ? partnerEmail : recipientEmail;
@@ -96,7 +96,7 @@ export async function sendNotification({ userId, type, templateId, templateParam
       email: recipientEmail,
       reply_to: replyTo,
       partner_email: partnerEmail || "Not shared",
-      name: templateParams?.recipient_name || templateParams?.organization_name || templateParams?.supplier_name || "AaharLink",
+      name: templateParams?.recipient_name || templateParams?.organization_name || templateParams?.supplier_name || "FoodBridge",
     };
     const emailjs = await loadEmailJs();
     await emailjs.send(EMAILJS_SERVICE_ID, templateId, normalizedParams);

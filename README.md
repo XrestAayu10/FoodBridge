@@ -1,4 +1,4 @@
-# AaharLink
+# FoodBridge
 
 A beginner-friendly, multi-page food-rescue platform connecting surplus-food suppliers with verified relief organizations in Nepal. Built with **plain HTML, CSS, and vanilla JavaScript (ES modules)** — no frameworks, no bundlers, no build step. Data, auth, and file storage run entirely on [Supabase](https://supabase.com); email notifications run on [EmailJS](https://www.emailjs.com). Because there's no backend server, it deploys anywhere static files are served (Netlify, Vercel, GitHub Pages, etc.).
 

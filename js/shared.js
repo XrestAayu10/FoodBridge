@@ -118,7 +118,7 @@ function renderFooter() {
   const prefix = rootPrefix();
   footer.innerHTML = `
     <div class="container">
-      <span>&copy; ${new Date().getFullYear()} AaharLink · Food rescue for Nepal</span>
+      <span>&copy; ${new Date().getFullYear()} FoodBridge · Food rescue for Nepal</span>
       <span><a href="${prefix}how-it-works.html">How it works</a></span>
     </div>
   `;

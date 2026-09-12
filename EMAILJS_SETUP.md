@@ -1,4 +1,4 @@
-# AaharLink EmailJS Setup
+# FoodBridge EmailJS Setup
 
 This project currently uses two EmailJS templates:
 
@@ -14,7 +14,7 @@ The project uses EmailJS's `default_service`. In **Email Services**, connect a G
 Open a template and configure the panel on the right:
 
 - **To Email:** `{{to_email}}`
-- **From Name:** `AaharLink`
+- **From Name:** `FoodBridge`
 - **From Email:** keep **Use Default Email Address** selected
 - **Reply To:** `{{reply_to}}`
 - **Bcc:** empty
@@ -56,9 +56,9 @@ Partner phone: {{partner_phone}}
 
 Pickup code: {{pickup_code}}
 
-The organization should show the pickup code at handover. The supplier should enter that code in AaharLink. The organization must also confirm that the food was received.
+The organization should show the pickup code at handover. The supplier should enter that code in FoodBridge. The organization must also confirm that the food was received.
 
-Thank you for rescuing food with AaharLink.
+Thank you for rescuing food with FoodBridge.
 ```
 
 For security, the organization receives the real pickup code. The supplier's copy says that the code is shown only to the organization.
@@ -122,7 +122,7 @@ Pickup reference: {{pickup_reference}}
 
 Please keep this email as the pickup receipt.
 
-Thank you for rescuing food with AaharLink.
+Thank you for rescuing food with FoodBridge.
 ```
 
 ### Test values
@@ -154,7 +154,7 @@ For each template:
 1. Click **Save**.
 2. Click **Test It** and enter the test variables above.
 3. Confirm the test message arrives; check Spam once if necessary.
-4. In AaharLink, hard-refresh with `Ctrl+Shift+R`.
+4. In FoodBridge, hard-refresh with `Ctrl+Shift+R`.
 5. Create a new listing and a new pickup request.
 6. Accept it as the supplier. Two accepted emails should be sent, about 1.1 seconds apart.
 7. Confirm receipt as the organization and enter the code as the supplier. When the second confirmation changes the request to `collected`, two completed emails should be sent.
