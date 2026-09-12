@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Supplier dashboard for AaharLink." />
+    <title>Supplier dashboard | AaharLink</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
+  <body>
+    <header id="site-header" class="site-header"></header>
+
+    <main>
+      <div class="container">
+        <section class="section-title">
+          <div>
+            <p class="eyebrow">Supplier dashboard</p>
+            <h1 id="welcome-heading">Welcome back</h1>
+          </div>
+          <a class="btn btn-primary" href="post-food.html">+ Post food</a>
+        </section>
+
+        <div class="stat-grid" id="stat-grid">
+          <div class="stat-card"><div class="stat-label">Active listings</div><div class="stat-value">—</div></div>
+          <div class="stat-card"><div class="stat-label">Pending requests</div><div class="stat-value">—</div></div>
+          <div class="stat-card"><div class="stat-label">Reserved</div><div class="stat-value">—</div></div>
+          <div class="stat-card"><div class="stat-label">Collected</div><div class="stat-value">—</div></div>
+        </div>
+
+        <section class="card mt-lg">
+          <div class="section-title mb-0">
+            <h2>Quick links</h2>
+          </div>
+          <div class="grid grid-2">
+            <a class="btn btn-secondary" href="post-food.html">Post available food</a>
+            <a class="btn btn-secondary" href="listings.html">Manage my listings</a>
+            <a class="btn btn-secondary" href="requests.html">Review pickup requests</a>
+            <a class="btn btn-secondary" href="impact.html">View impact</a>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer id="site-footer" class="site-footer"></footer>
+    <script type="module" src="../js/shared.js"></script>
+    <script type="module">
+      import { requireRole, escapeHtml, renderError } from "../js/shared.js";
+      import { fetchListingsForSupplier } from "../js/listings.js";
+
+      const statGrid = document.getElementById("stat-grid");
+
+      async function load() {
+        const profile = await requireRole("supplier");
+        if (!profile) return;
+        document.getElementById("welcome-heading").textContent = `Welcome back, ${profile.name}`;
+
+        try {
+          const listings = await fetchListingsForSupplier(profile.id);
+          const counts = { available: 0, requested: 0, reserved: 0, collected: 0 };
+          for (const listing of listings) {
+            if (counts[listing.status] !== undefined) counts[listing.status] += 1;
+          }
+          statGrid.innerHTML = `
+            <div class="stat-card"><div class="stat-label">Active listings</div><div class="stat-value">${counts.available}</div></div>
+            <div class="stat-card"><div class="stat-label">Pending requests</div><div class="stat-value">${counts.requested}</div></div>
+            <div class="stat-card"><div class="stat-label">Reserved</div><div class="stat-value">${counts.reserved}</div></div>
+            <div class="stat-card"><div class="stat-label">Collected</div><div class="stat-value">${counts.collected}</div></div>
+          `;
+        } catch (error) {
+          renderError(statGrid, { message: error.message }, load);
+        }
+      }
+
+      load();
+    </script>
+  </body>
+</html>

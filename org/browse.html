@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Browse available surplus food listings on AaharLink." />
+    <title>Browse food | AaharLink</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
+  <body>
+    <header id="site-header" class="site-header"></header>
+
+    <main>
+      <div class="container">
+        <p class="eyebrow">Organization</p>
+        <h1>Available food</h1>
+
+        <div id="verification-banner" class="form-error-banner hidden" style="background:#fffbeb; border-color:#fde68a; color:#92400e;"></div>
+
+        <form class="filter-bar" id="filter-form">
+          <div class="form-group">
+            <label for="filter-location">Location contains</label>
+            <input id="filter-location" name="location" type="text" placeholder="e.g. Kathmandu" />
+          </div>
+          <div class="form-group">
+            <label for="filter-quantity">Min quantity (number)</label>
+            <input id="filter-quantity" name="minQuantity" type="number" min="0" placeholder="e.g. 10" />
+          </div>
+          <div class="form-group">
+            <label for="filter-deadline">Pickup before</label>
+            <input id="filter-deadline" name="deadlineBefore" type="datetime-local" />
+          </div>
+          <button class="btn btn-secondary" type="submit">Filter</button>
+        </form>
+
+        <div class="grid grid-2" id="listings-container"></div>
+      </div>
+    </main>
+
+    <footer id="site-footer" class="site-footer"></footer>
+    <script type="module" src="../js/shared.js"></script>
+    <script type="module">
+      import { requireRole, renderLoading, renderEmpty, renderError, statusBadgeHtml, formatDateTime, timeUntil, isExpiringSoon, escapeHtml } from "../js/shared.js";
+      import { fetchAvailableListings } from "../js/listings.js";
+      import { fetchOrganizationForUser } from "../js/auth.js";
+
+      const container = document.getElementById("listings-container");
+      const banner = document.getElementById("verification-banner");
+      const form = document.getElementById("filter-form");
+
+      function listingCard(listing) {
+        const expiring = isExpiringSoon(listing.pickup_deadline);
+        return `
+          <article class="listing-card">
+            ${listing.photo_url ? `<img class="listing-photo" src="${listing.photo_url}" alt="${escapeHtml(listing.food_name)}" />` : ""}
+            <div class="listing-card-top">
+              <h3>${escapeHtml(listing.food_name)}</h3>
+              ${statusBadgeHtml(listing.status, { expiring })}
+            </div>
+            <div class="listing-meta">
+              <span>${escapeHtml(listing.quantity)}</span>
+              <span>${escapeHtml(listing.location)}</span>
+              <span>${formatDateTime(listing.pickup_deadline)} · ${timeUntil(listing.pickup_deadline)}</span>
+            </div>
+            <div class="listing-card-footer">
+              <a class="btn btn-primary btn-sm" data-listing-id="${escapeHtml(listing.id)}" href="./listing-detail.html?id=${encodeURIComponent(listing.id)}">View &amp; request</a>
+            </div>
+          </article>
+        `;
+      }
+
+      async function loadListings(filters) {
+        renderLoading(container, "Loading available food…");
+        try {
+          const listings = await fetchAvailableListings(filters);
+          if (listings.length === 0) {
+            renderEmpty(container, { icon: "🔎", title: "No matching listings", message: "Try clearing filters or check back soon." });
+            return;
+          }
+          container.innerHTML = listings.map(listingCard).join("");
+        } catch (error) {
+          renderError(container, { message: error.message }, () => loadListings(filters));
+        }
+      }
+
+      async function init() {
+        const profile = await requireRole("organization");
+        if (!profile) return;
+        try {
+          const org = await fetchOrganizationForUser(profile.id);
+          if (org && org.verification_status !== "approved") {
+            banner.textContent = "Your organization is still pending verification. You can browse listings, but requesting a pickup requires admin approval.";
+            banner.classList.remove("hidden");
+          }
+        } catch {
+          /* non-blocking */
+        }
+        loadListings({});
+      }
+
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const data = new FormData(form);
+        loadListings({
+          location: data.get("location") || undefined,
+          minQuantity: data.get("minQuantity") || undefined,
+          deadlineBefore: data.get("deadlineBefore") || undefined,
+        });
+      });
+
+      container.addEventListener("click", (event) => {
+        const link = event.target.closest("[data-listing-id]");
+        if (!link) return;
+        sessionStorage.setItem("aaharlink-selected-listing-id", link.dataset.listingId);
+      });
+
+      init();
+    </script>
+  </body>
+</html>

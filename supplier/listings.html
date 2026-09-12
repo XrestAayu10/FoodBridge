@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Manage your posted food listings on AaharLink." />
+    <title>My listings | AaharLink</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
+  <body>
+    <header id="site-header" class="site-header"></header>
+
+    <main>
+      <div class="container">
+        <section class="section-title">
+          <div>
+            <p class="eyebrow">Supplier</p>
+            <h1>My listings</h1>
+          </div>
+          <a class="btn btn-primary" href="post-food.html">+ Post food</a>
+        </section>
+
+        <div class="grid grid-2" id="listings-container"></div>
+      </div>
+    </main>
+
+    <footer id="site-footer" class="site-footer"></footer>
+    <script type="module" src="../js/shared.js"></script>
+    <script type="module">
+      import { requireRole, renderLoading, renderEmpty, renderError, statusBadgeHtml, formatDateTime, timeUntil, isExpiringSoon, escapeHtml } from "../js/shared.js";
+      import { fetchListingsForSupplier } from "../js/listings.js";
+
+      const container = document.getElementById("listings-container");
+
+      async function load() {
+        renderLoading(container, "Loading your listings…");
+        const profile = await requireRole("supplier");
+        if (!profile) return;
+        try {
+          const listings = await fetchListingsForSupplier(profile.id);
+          if (listings.length === 0) {
+            renderEmpty(container, { icon: "🍽️", title: "No listings yet", message: "Post your first surplus food listing to get started." });
+            return;
+          }
+          container.innerHTML = listings
+            .map((listing) => {
+              const expiring = listing.status === "available" && isExpiringSoon(listing.pickup_deadline);
+              return `
+                <article class="listing-card">
+                  ${listing.photo_url ? `<img class="listing-photo" src="${listing.photo_url}" alt="${escapeHtml(listing.food_name)}" />` : ""}
+                  <div class="listing-card-top">
+                    <h3>${escapeHtml(listing.food_name)}</h3>
+                    ${statusBadgeHtml(listing.status, { expiring })}
+                  </div>
+                  <div class="listing-meta">
+                    <span>${escapeHtml(listing.quantity)}</span>
+                    <span>${escapeHtml(listing.location)}</span>
+                    <span>${formatDateTime(listing.pickup_deadline)} · ${timeUntil(listing.pickup_deadline)}</span>
+                  </div>
+                </article>
+              `;
+            })
+            .join("");
+        } catch (error) {
+          renderError(container, { message: error.message }, load);
+        }
+      }
+
+      load();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,10 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+
+# Local tooling state (not part of the app)
+.gstack/
+
+# Never commit real secrets if you keep local scratch files
+*.env
+.env.*

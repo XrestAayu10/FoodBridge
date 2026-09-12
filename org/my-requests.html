@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Track your organization's pickup requests on AaharLink." />
+    <title>My requests | AaharLink</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
+  <body>
+    <header id="site-header" class="site-header"></header>
+
+    <main>
+      <div class="container">
+        <p class="eyebrow">Organization</p>
+        <h1>My requests</h1>
+        <div class="form-error-banner hidden" id="email-setup-warning">
+          Email delivery is not configured yet. Pickup actions will work, but emails will not be sent until EmailJS is configured.
+        </div>
+
+        <div class="grid" id="requests-container"></div>
+      </div>
+    </main>
+
+    <footer id="site-footer" class="site-footer"></footer>
+    <script type="module" src="../js/shared.js"></script>
+    <script type="module">
+      import { requireRole, renderLoading, renderEmpty, renderError, statusBadgeHtml, formatDateTime, escapeHtml, showToast } from "../js/shared.js";
+      import { fetchRequestsForOrganization, confirmCollection } from "../js/requests.js";
+      import { fetchOrganizationForUser } from "../js/auth.js";
+      import { isEmailConfigured } from "../js/notifications.js";
+
+      const container = document.getElementById("requests-container");
+      if (!isEmailConfigured("pickupCompleted")) {
+        document.getElementById("email-setup-warning").classList.remove("hidden");
+      }
+
+      function requestCard(request) {
+        const listing = request.food_listings;
+        const showConfirmForm = request.status === "accepted" && !request.organization_confirmed_at;
+        return `
+          <div class="card" data-request-id="${request.id}">
+            <div class="listing-card-top">
+              <h3>${escapeHtml(listing?.food_name || "Listing")}</h3>
+              ${statusBadgeHtml(request.status)}
+            </div>
+            <div class="listing-meta">
+              <span>Requested: ${escapeHtml(request.requested_quantity || "")}</span>
+              <span>Location: ${escapeHtml(listing?.location || "")}</span>
+              <span>Deadline: ${formatDateTime(listing?.pickup_deadline)}</span>
+            </div>
+            ${request.pickup_code ? `<p>Pickup code: <span class="pickup-code">${escapeHtml(request.pickup_code)}</span></p>` : ""}
+            ${request.contacts ? `<div class="mt-sm"><strong>Supplier contact</strong><p class="text-muted mb-0">${escapeHtml(request.contacts.supplier_name)}${request.contacts.supplier_phone ? ` · ${escapeHtml(request.contacts.supplier_phone)}` : " · Phone not shared"}</p></div>` : ""}
+            ${showConfirmForm ? `
+              <button class="btn btn-secondary btn-sm mt-sm" data-action="confirm" type="button">Confirm food received</button>
+            ` : ""}
+            ${request.status === "collected" ? `<p class="text-muted mb-0">Collection confirmed. Thank you for rescuing this food!</p>` : ""}
+            ${request.status === "rejected" ? `<p class="text-muted mb-0">The supplier declined this request.</p>` : ""}
+            ${request.status === "pending" ? `<p class="text-muted mb-0">Waiting for the supplier to respond.</p>` : ""}
+          </div>
+        `;
+      }
+
+      async function load() {
+        renderLoading(container, "Loading your requests…");
+        const profile = await requireRole("organization");
+        if (!profile) return;
+        try {
+          const org = await fetchOrganizationForUser(profile.id);
+          if (!org) {
+            renderEmpty(container, { icon: "🏢", title: "No organization profile", message: "Complete your organization profile first." });
+            return;
+          }
+          const requests = await fetchRequestsForOrganization(org.id);
+          if (requests.length === 0) {
+            renderEmpty(container, { icon: "📭", title: "No requests yet", message: "Browse available food to request your first pickup." });
+            return;
+          }
+          container.innerHTML = requests.map(requestCard).join("");
+          wireActions(requests);
+        } catch (error) {
+          renderError(container, { message: error.message }, load);
+        }
+      }
+
+      function wireActions(requests) {
+        container.querySelectorAll("[data-request-id]").forEach((card) => {
+          const id = card.getAttribute("data-request-id");
+          const request = requests.find((r) => String(r.id) === id);
+          const confirmButton = card.querySelector('[data-action="confirm"]');
+          confirmButton?.addEventListener("click", async () => {
+            confirmButton.disabled = true;
+            try {
+              const confirmed = await confirmCollection(request, request.pickup_code, "organization");
+              if (confirmed.status !== "collected") {
+                showToast("Food receipt confirmed. Waiting for the supplier.", "success");
+              } else if (confirmed.emailDelivery?.allDelivered) {
+                showToast("Pickup completed. Both receipt emails were sent.", "success");
+              } else {
+                showToast("Pickup completed, but receipt email was not sent. Check EmailJS setup.", "error");
+              }
+              load();
+            } catch (error) {
+              showToast(error.message, "error");
+              confirmButton.disabled = false;
+            }
+          });
+        });
+      }
+
+      load();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Post surplus food for pickup on AaharLink." />
+    <title>Post food | AaharLink</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
+  <body>
+    <header id="site-header" class="site-header"></header>
+
+    <main>
+      <div class="container" style="max-width:640px;">
+        <p class="eyebrow">Supplier</p>
+        <h1>Post available food</h1>
+        <p class="text-muted">Add a photo, quantity, and pickup deadline so organizations can find it fast.</p>
+
+        <div class="card">
+          <div id="form-error" class="form-error-banner hidden"></div>
+
+          <form id="post-food-form" novalidate>
+            <div class="form-group">
+              <label for="food-name">Food name</label>
+              <input id="food-name" name="foodName" type="text" required placeholder="e.g. Veg meal boxes" />
+            </div>
+            <div class="form-group">
+              <label for="food-type">Food type</label>
+              <input id="food-type" name="foodType" type="text" placeholder="e.g. Cooked meals, bakery, produce" />
+            </div>
+            <div class="form-group">
+              <label for="quantity">Quantity</label>
+              <input id="quantity" name="quantity" type="text" required placeholder="e.g. 50 portions" />
+            </div>
+            <div class="form-group">
+              <label for="prepared-at">Prepared at</label>
+              <input id="prepared-at" name="preparedAt" type="datetime-local" />
+            </div>
+            <div class="form-group">
+              <label for="pickup-deadline">Pickup deadline</label>
+              <input id="pickup-deadline" name="pickupDeadline" type="datetime-local" required />
+            </div>
+            <div class="form-group">
+              <label for="location">Pickup location</label>
+              <input id="location" name="location" type="text" required placeholder="e.g. Thamel, Kathmandu" />
+            </div>
+            <div class="form-group">
+              <label for="photo">Photo</label>
+              <input id="photo" name="photo" type="file" accept="image/*" />
+            </div>
+            <div class="form-group">
+              <label class="checkbox-row">
+                <input id="safety" name="safetyConfirmed" type="checkbox" required />
+                I confirm this food is safely stored and ready for collection.
+              </label>
+            </div>
+            <button class="btn btn-primary btn-block" id="submit-button" type="submit">Publish listing</button>
+          </form>
+        </div>
+      </div>
+    </main>
+
+    <footer id="site-footer" class="site-footer"></footer>
+    <script type="module" src="../js/shared.js"></script>
+    <script type="module">
+      import { requireRole, showToast } from "../js/shared.js";
+      import { createListing } from "../js/listings.js";
+
+      let profile = null;
+      requireRole("supplier").then((p) => (profile = p));
+
+      const form = document.getElementById("post-food-form");
+      const errorBanner = document.getElementById("form-error");
+      const submitButton = document.getElementById("submit-button");
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        errorBanner.classList.add("hidden");
+        if (!profile) {
+          errorBanner.textContent = "Please log in as a supplier first.";
+          errorBanner.classList.remove("hidden");
+          return;
+        }
+        submitButton.disabled = true;
+        submitButton.textContent = "Publishing…";
+        try {
+          const data = new FormData(form);
+          const photo = data.get("photo");
+          await createListing(
+            profile.id,
+            {
+              foodName: data.get("foodName"),
+              foodType: data.get("foodType"),
+              quantity: data.get("quantity"),
+              preparedAt: data.get("preparedAt") || null,
+              pickupDeadline: data.get("pickupDeadline"),
+              location: data.get("location"),
+              safetyConfirmed: data.get("safetyConfirmed") === "on",
+            },
+            photo
+          );
+          showToast("Listing published!", "success");
+          setTimeout(() => (window.location.href = "listings.html"), 700);
+        } catch (error) {
+          errorBanner.textContent = error.message;
+          errorBanner.classList.remove("hidden");
+          submitButton.disabled = false;
+          submitButton.textContent = "Publish listing";
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Admin dashboard for AaharLink." />
+    <title>Admin dashboard | AaharLink</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
+  <body>
+    <header id="site-header" class="site-header"></header>
+
+    <main>
+      <div class="container">
+        <p class="eyebrow">Admin</p>
+        <h1 id="welcome-heading">Admin dashboard</h1>
+
+        <div class="stat-grid" id="stat-grid"></div>
+
+        <section class="card mt-lg">
+          <div class="section-title mb-0">
+            <h2>Quick links</h2>
+          </div>
+          <div class="grid grid-2">
+            <a class="btn btn-secondary" href="verification-queue.html">Verification queue</a>
+            <a class="btn btn-secondary" href="impact.html">Impact dashboard</a>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer id="site-footer" class="site-footer"></footer>
+    <script type="module" src="../js/shared.js"></script>
+    <script type="module">
+      import { requireRole, renderError } from "../js/shared.js";
+      import { supabase } from "../js/supabase-client.js";
+
+      const statGrid = document.getElementById("stat-grid");
+
+      async function load() {
+        const profile = await requireRole("admin");
+        if (!profile) return;
+        document.getElementById("welcome-heading").textContent = `Welcome back, ${profile.name}`;
+        try {
+          const [{ count: pending }, { count: suppliers }, { count: orgs }, { count: activeListings }] = await Promise.all([
+            supabase.from("organizations").select("id", { count: "exact", head: true }).eq("verification_status", "pending"),
+            supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "supplier"),
+            supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "organization"),
+            supabase.from("food_listings").select("id", { count: "exact", head: true }).eq("status", "available"),
+          ]);
+          statGrid.innerHTML = `
+            <div class="stat-card"><div class="stat-label">Pending verifications</div><div class="stat-value">${pending || 0}</div></div>
+            <div class="stat-card"><div class="stat-label">Suppliers</div><div class="stat-value">${suppliers || 0}</div></div>
+            <div class="stat-card"><div class="stat-label">Organizations</div><div class="stat-value">${orgs || 0}</div></div>
+            <div class="stat-card"><div class="stat-label">Active listings</div><div class="stat-value">${activeListings || 0}</div></div>
+          `;
+        } catch (error) {
+          renderError(statGrid, { message: error.message }, load);
+        }
+      }
+
+      load();
+    </script>
+  </body>
+</html>

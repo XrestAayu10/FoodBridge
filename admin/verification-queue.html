@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Approve or reject organizations on AaharLink." />
+    <title>Verification queue | AaharLink</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
+  <body>
+    <header id="site-header" class="site-header"></header>
+
+    <main>
+      <div class="container">
+        <p class="eyebrow">Admin</p>
+        <h1>Verification queue</h1>
+        <p class="text-muted">Approve organizations before they can request pickups.</p>
+
+        <div class="grid" id="orgs-container"></div>
+      </div>
+    </main>
+
+    <footer id="site-footer" class="site-footer"></footer>
+    <script type="module" src="../js/shared.js"></script>
+    <script type="module">
+      import { requireRole, renderLoading, renderEmpty, renderError, statusBadgeHtml, escapeHtml, showToast } from "../js/shared.js";
+      import { supabase } from "../js/supabase-client.js";
+
+      const container = document.getElementById("orgs-container");
+
+      function orgCard(org) {
+        return `
+          <div class="card" data-org-id="${org.id}">
+            <div class="listing-card-top">
+              <h3>${escapeHtml(org.name)}</h3>
+              ${statusBadgeHtml(org.verification_status)}
+            </div>
+            <div class="listing-meta">
+              <span>${escapeHtml(org.address || "No address on file")}</span>
+            </div>
+            <p class="text-muted">${escapeHtml(org.community_served || "No community description provided.")}</p>
+            ${org.document_url ? `<p><a href="#" data-doc="${escapeHtml(org.document_url)}">View verification document</a></p>` : `<p class="text-muted">No document uploaded.</p>`}
+            ${org.verification_status === "pending" ? `
+              <div class="flex gap-sm mt-sm">
+                <button class="btn btn-primary btn-sm" data-action="approve">Approve</button>
+                <button class="btn btn-danger btn-sm" data-action="reject">Reject</button>
+              </div>
+            ` : ""}
+          </div>
+        `;
+      }
+
+      async function load() {
+        renderLoading(container, "Loading organizations…");
+        const profile = await requireRole("admin");
+        if (!profile) return;
+        try {
+          const { data, error } = await supabase.from("organizations").select("*").order("created_at", { ascending: true });
+          if (error) throw new Error(error.message);
+          if (!data || data.length === 0) {
+            renderEmpty(container, { icon: "🏢", title: "No organizations yet", message: "Registered organizations will appear here." });
+            return;
+          }
+          container.innerHTML = data.map(orgCard).join("");
+          wireActions();
+        } catch (error) {
+          renderError(container, { message: error.message }, load);
+        }
+      }
+
+      function wireActions() {
+        container.querySelectorAll("[data-org-id]").forEach((card) => {
+          const id = card.getAttribute("data-org-id");
+
+          card.querySelector('[data-action="approve"]')?.addEventListener("click", async () => {
+            const { error } = await supabase.rpc("set_organization_verification", { p_organization_id: id, p_status: "approved" });
+            if (error) return showToast(error.message, "error");
+            showToast("Organization approved.", "success");
+            load();
+          });
+
+          card.querySelector('[data-action="reject"]')?.addEventListener("click", async () => {
+            const { error } = await supabase.rpc("set_organization_verification", { p_organization_id: id, p_status: "rejected" });
+            if (error) return showToast(error.message, "error");
+            showToast("Organization rejected.", "success");
+            load();
+          });
+        });
+      }
+
+      load();
+    </script>
+  </body>
+</html>

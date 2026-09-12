@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Manage your organization profile on AaharLink." />
+    <title>Organization profile | AaharLink</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
+  <body>
+    <header id="site-header" class="site-header"></header>
+
+    <main>
+      <div class="container" style="max-width:560px;">
+        <p class="eyebrow">Organization</p>
+        <h1>Profile</h1>
+
+        <div id="profile-container">
+          <div class="state-panel"><div class="spinner"></div><p class="mb-0">Loading profile…</p></div>
+        </div>
+      </div>
+    </main>
+
+    <footer id="site-footer" class="site-footer"></footer>
+    <script type="module" src="../js/shared.js"></script>
+    <script type="module">
+      import { requireRole, renderError, statusBadgeHtml, escapeHtml, showToast } from "../js/shared.js";
+      import { fetchOrganizationForUser, updateContactSharing } from "../js/auth.js";
+      import { supabase, STORAGE_BUCKET_DOCUMENTS } from "../js/supabase-client.js";
+
+      const container = document.getElementById("profile-container");
+      let profileRef = null;
+      let orgRef = null;
+
+      function render(org) {
+        container.innerHTML = `
+          <div class="card">
+            <div class="flex-between">
+              <h2 class="mb-0">${escapeHtml(org.name)}</h2>
+              ${statusBadgeHtml(org.verification_status)}
+            </div>
+            <form id="profile-form" class="mt-md">
+              <div class="form-group">
+                <label for="org-name">Organization name</label>
+                <input id="org-name" name="name" type="text" required value="${escapeHtml(org.name)}" />
+              </div>
+              <div class="form-group">
+                <label for="org-address">Address</label>
+                <input id="org-address" name="address" type="text" value="${escapeHtml(org.address || "")}" />
+              </div>
+              <div class="form-group">
+                <label for="community-served">Community served</label>
+                <textarea id="community-served" name="communityServed">${escapeHtml(org.community_served || "")}</textarea>
+              </div>
+              <div class="form-group">
+                <label for="contact-phone">Pickup phone</label>
+                <input id="contact-phone" name="phone" type="tel" autocomplete="tel" value="${escapeHtml(profileRef.phone || "")}" />
+              </div>
+              <div class="form-group">
+                <label><input name="sharePhoneOnAccept" type="checkbox" ${profileRef.share_phone_on_accept ? "checked" : ""} /> Share my phone only with an accepted pickup partner.</label>
+                <p class="field-hint">It remains hidden while a request is pending.</p>
+              </div>
+              <div class="form-group">
+                <label for="document">Verification document</label>
+                <input id="document" name="document" type="file" accept=".pdf,.jpg,.jpeg,.png" />
+                <p class="field-hint">${org.document_url ? "A document is already on file. Uploading a new one replaces it." : "No document uploaded yet."}</p>
+              </div>
+              <button class="btn btn-primary btn-block" type="submit">Save changes</button>
+            </form>
+          </div>
+        `;
+
+        document.getElementById("profile-form").addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const button = event.target.querySelector("button");
+          button.disabled = true;
+          button.textContent = "Saving…";
+          try {
+            const data = new FormData(event.target);
+            const updates = {
+              name: data.get("name"),
+              address: data.get("address"),
+              community_served: data.get("communityServed"),
+            };
+            const documentFile = data.get("document");
+            if (documentFile && documentFile.size > 0) {
+              const path = `${profileRef.id}/${Date.now()}-${documentFile.name}`;
+              const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET_DOCUMENTS).upload(path, documentFile);
+              if (uploadError) throw new Error(uploadError.message);
+              updates.document_url = path;
+            }
+            const { error } = await supabase.from("organizations").update(updates).eq("id", org.id);
+            if (error) throw new Error(error.message);
+            await updateContactSharing({
+              userId: profileRef.id,
+              phone: data.get("phone"),
+              sharePhoneOnAccept: data.get("sharePhoneOnAccept") === "on",
+            });
+            showToast("Profile updated.", "success");
+            load();
+          } catch (error) {
+            showToast(error.message, "error");
+            button.disabled = false;
+            button.textContent = "Save changes";
+          }
+        });
+      }
+
+      async function load() {
+        const profile = await requireRole("organization");
+        if (!profile) return;
+        profileRef = profile;
+        try {
+          const org = await fetchOrganizationForUser(profile.id);
+          if (!org) {
+            container.innerHTML = `<div class="state-panel"><h3>No organization profile found</h3><p class="mb-0">Please contact support.</p></div>`;
+            return;
+          }
+          orgRef = org;
+          render(org);
+        } catch (error) {
+          renderError(container, { message: error.message }, load);
+        }
+      }
+
+      load();
+    </script>
+  </body>
+</html>

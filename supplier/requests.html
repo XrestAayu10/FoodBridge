@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Review and accept pickup requests on AaharLink." />
+    <title>Pickup requests | AaharLink</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
+  <body>
+    <header id="site-header" class="site-header"></header>
+
+    <main>
+      <div class="container">
+        <p class="eyebrow">Supplier</p>
+        <h1>Pickup requests</h1>
+        <p class="text-muted">Accept a request to generate a pickup code, or reject it to reopen the listing.</p>
+        <div class="form-error-banner hidden" id="email-setup-warning">
+          Email delivery is not configured yet. Pickup actions will work, but emails will not be sent until EmailJS is configured.
+        </div>
+
+        <section class="card mb-md" id="contact-settings" hidden>
+          <div class="section-title mb-0">
+            <div>
+              <h2>Pickup contact sharing</h2>
+              <p class="text-muted mb-0">Your phone stays private until you accept a request.</p>
+            </div>
+          </div>
+          <form id="contact-settings-form" class="grid grid-2 mt-sm">
+            <div class="form-group mb-0">
+              <label for="contact-phone">Phone number</label>
+              <input id="contact-phone" name="phone" type="tel" autocomplete="tel" />
+            </div>
+            <div class="form-group mb-0">
+              <label><input name="sharePhoneOnAccept" type="checkbox" /> Share with accepted organization</label>
+              <button class="btn btn-secondary btn-sm mt-sm" type="submit">Save contact settings</button>
+            </div>
+          </form>
+        </section>
+
+        <div class="grid" id="requests-container"></div>
+      </div>
+    </main>
+
+    <footer id="site-footer" class="site-footer"></footer>
+    <script type="module" src="../js/shared.js"></script>
+    <script type="module">
+      import { requireRole, renderLoading, renderEmpty, renderError, statusBadgeHtml, formatDateTime, escapeHtml, showToast } from "../js/shared.js";
+      import { fetchRequestsForSupplier, acceptRequest, rejectRequest, confirmCollection } from "../js/requests.js";
+      import { updateContactSharing } from "../js/auth.js";
+      import { isEmailConfigured } from "../js/notifications.js";
+
+      const container = document.getElementById("requests-container");
+      const contactSettings = document.getElementById("contact-settings");
+      const contactSettingsForm = document.getElementById("contact-settings-form");
+      let currentProfile = null;
+      if (!isEmailConfigured(["requestAccepted", "pickupCompleted"])) {
+        document.getElementById("email-setup-warning").classList.remove("hidden");
+      }
+
+      function requestCard(request) {
+        const listing = request.food_listings;
+        const orgName = request.organizations?.name || "Organization";
+        const showConfirmForm = request.status === "accepted" && !request.supplier_confirmed_at;
+        return `
+          <div class="card" data-request-id="${request.id}">
+            <div class="listing-card-top">
+              <h3>${escapeHtml(listing?.food_name || "Listing")}</h3>
+              ${statusBadgeHtml(request.status)}
+            </div>
+            <div class="listing-meta">
+              <span>${escapeHtml(orgName)}</span>
+              <span>Requested: ${escapeHtml(request.requested_quantity || "")}</span>
+              <span>Deadline: ${formatDateTime(listing?.pickup_deadline)}</span>
+            </div>
+            ${request.contacts ? `<div class="mt-sm"><strong>Pickup contact</strong><p class="text-muted mb-0">${escapeHtml(request.contacts.organization_name)}${request.contacts.organization_phone ? ` · ${escapeHtml(request.contacts.organization_phone)}` : " · Phone not shared"}</p></div>` : ""}
+            <div class="flex gap-sm mt-sm" data-actions>
+              ${request.status === "pending" ? `
+                <button class="btn btn-primary btn-sm" data-action="accept">Accept</button>
+                <button class="btn btn-danger btn-sm" data-action="reject">Reject</button>
+              ` : ""}
+            </div>
+            ${showConfirmForm ? `
+              <form class="mt-sm" data-action="confirm">
+                <div class="form-group">
+                  <label>Enter the code shown by the organization</label>
+                  <input type="text" name="code" placeholder="AHL-1234" required />
+                </div>
+                <button class="btn btn-secondary btn-sm" type="submit">Confirm collection</button>
+              </form>
+            ` : ""}
+            ${request.status === "collected" ? `<p class="text-muted mb-0">Collection confirmed. Thank you!</p>` : ""}
+          </div>
+        `;
+      }
+
+      async function load() {
+        renderLoading(container, "Loading pickup requests…");
+        const profile = await requireRole("supplier");
+        if (!profile) return;
+        currentProfile = profile;
+        contactSettings.hidden = false;
+        contactSettingsForm.elements.phone.value = profile.phone || "";
+        contactSettingsForm.elements.sharePhoneOnAccept.checked = Boolean(profile.share_phone_on_accept);
+        try {
+          const requests = await fetchRequestsForSupplier(profile.id);
+          if (requests.length === 0) {
+            renderEmpty(container, { icon: "📥", title: "No requests yet", message: "Requests from organizations will appear here." });
+            return;
+          }
+          container.innerHTML = requests.map(requestCard).join("");
+          wireActions(requests);
+        } catch (error) {
+          renderError(container, { message: error.message }, load);
+        }
+      }
+
+      contactSettingsForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const button = contactSettingsForm.querySelector("button[type='submit']");
+        const data = new FormData(contactSettingsForm);
+        button.disabled = true;
+        try {
+          currentProfile = await updateContactSharing({
+            userId: currentProfile.id,
+            phone: data.get("phone"),
+            sharePhoneOnAccept: data.get("sharePhoneOnAccept") === "on",
+          });
+          showToast("Contact sharing preference saved.", "success");
+        } catch (error) {
+          showToast(error.message, "error");
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      function wireActions(requests) {
+        container.querySelectorAll("[data-request-id]").forEach((card) => {
+          const id = card.getAttribute("data-request-id");
+          const request = requests.find((r) => String(r.id) === id);
+
+          card.querySelector('[data-action="accept"]')?.addEventListener("click", async () => {
+            try {
+              const accepted = await acceptRequest(request);
+              showToast(
+                accepted.emailDelivery?.allDelivered
+                  ? "Request accepted. Both email notifications were sent."
+                  : "Request accepted, but email was not sent. Check EmailJS setup.",
+                accepted.emailDelivery?.allDelivered ? "success" : "error"
+              );
+              load();
+            } catch (error) {
+              showToast(error.message, "error");
+            }
+          });
+
+          card.querySelector('[data-action="reject"]')?.addEventListener("click", async () => {
+            try {
+              await rejectRequest(request);
+              showToast("Request rejected.", "success");
+              load();
+            } catch (error) {
+              showToast(error.message, "error");
+            }
+          });
+
+          const confirmForm = card.querySelector('form[data-action="confirm"]');
+          confirmForm?.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const code = new FormData(confirmForm).get("code");
+            try {
+              const confirmed = await confirmCollection(request, code, "supplier");
+              if (confirmed.status !== "collected") {
+                showToast("Your confirmation is saved. Waiting for the organization.", "success");
+              } else if (confirmed.emailDelivery?.allDelivered) {
+                showToast("Collection completed. Both receipt emails were sent.", "success");
+              } else {
+                showToast("Collection completed, but receipt email was not sent. Check EmailJS setup.", "error");
+              }
+              load();
+            } catch (error) {
+              showToast(error.message, "error");
+            }
+          });
+        });
+      }
+
+      load();
+    </script>
+  </body>
+</html>

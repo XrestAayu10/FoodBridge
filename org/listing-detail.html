@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Listing details and pickup request on AaharLink." />
+    <title>Listing details | AaharLink</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
+  <body>
+    <header id="site-header" class="site-header"></header>
+
+    <main>
+      <div class="container" style="max-width:640px;">
+        <a href="browse.html">&larr; Back to available food</a>
+        <div id="detail-container" class="mt-md"></div>
+      </div>
+    </main>
+
+    <footer id="site-footer" class="site-footer"></footer>
+    <script type="module" src="../js/shared.js"></script>
+    <script type="module">
+      import { requireRole, renderLoading, renderEmpty, renderError, statusBadgeHtml, formatDateTime, timeUntil, escapeHtml, showToast } from "../js/shared.js";
+      import { fetchListingById } from "../js/listings.js";
+      import { createPickupRequest } from "../js/requests.js";
+      import { fetchOrganizationForUser } from "../js/auth.js";
+
+      const container = document.getElementById("detail-container");
+      const queryListingId = new URLSearchParams(window.location.search).get("id");
+      const listingId = queryListingId || sessionStorage.getItem("aaharlink-selected-listing-id");
+
+      if (listingId && !queryListingId) {
+        const recoveredUrl = new URL(window.location.href);
+        recoveredUrl.searchParams.set("id", listingId);
+        window.history.replaceState({}, "", recoveredUrl);
+      }
+
+      function render(listing, org) {
+        const canRequest = listing.status === "available" && org?.verification_status === "approved";
+        container.innerHTML = `
+          <div class="card">
+            ${listing.photo_url ? `<img class="listing-photo" src="${listing.photo_url}" alt="${escapeHtml(listing.food_name)}" />` : ""}
+            <div class="listing-card-top mt-sm">
+              <h1 style="font-size:22px;">${escapeHtml(listing.food_name)}</h1>
+              ${statusBadgeHtml(listing.status)}
+            </div>
+            <div class="listing-meta mt-sm">
+              <span>${escapeHtml(listing.quantity)}</span>
+              <span>${escapeHtml(listing.location)}</span>
+              <span>${escapeHtml(listing.food_type || "")}</span>
+            </div>
+            <p class="text-muted mt-sm">Pickup deadline: ${formatDateTime(listing.pickup_deadline)} (${timeUntil(listing.pickup_deadline)})</p>
+
+            <div id="request-area" class="mt-md"></div>
+          </div>
+        `;
+
+        const requestArea = document.getElementById("request-area");
+        if (listing.status !== "available") {
+          requestArea.innerHTML = `<p class="text-muted mb-0">This listing is no longer available.</p>`;
+          return;
+        }
+        if (!org) {
+          requestArea.innerHTML = `<p class="text-muted mb-0">Complete your organization profile before requesting a pickup.</p>`;
+          return;
+        }
+        if (org.verification_status !== "approved") {
+          requestArea.innerHTML = `<p class="text-muted mb-0">Your organization must be verified by an admin before you can request a pickup.</p>`;
+          return;
+        }
+
+        requestArea.innerHTML = `
+          <form id="request-form">
+            <div class="form-group">
+              <label for="requested-quantity">Quantity you'd like to request</label>
+              <input id="requested-quantity" name="requestedQuantity" type="text" value="${escapeHtml(listing.quantity)}" />
+            </div>
+            <button class="btn btn-primary btn-block" type="submit">Request pickup</button>
+          </form>
+        `;
+
+        document.getElementById("request-form").addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const button = event.target.querySelector("button");
+          button.disabled = true;
+          button.textContent = "Sending request…";
+          try {
+            const data = new FormData(event.target);
+            await createPickupRequest({ listing, organizationId: org.id, requestedQuantity: data.get("requestedQuantity") });
+            showToast("Pickup requested! The supplier has been notified.", "success");
+            setTimeout(() => (window.location.href = "my-requests.html"), 800);
+          } catch (error) {
+            showToast(error.message, "error");
+            button.disabled = false;
+            button.textContent = "Request pickup";
+          }
+        });
+      }
+
+      async function load() {
+        renderLoading(container, "Loading listing…");
+        const profile = await requireRole("organization");
+        if (!profile) return;
+        if (!listingId) {
+          renderEmpty(container, { icon: "❓", title: "Choose a food listing", message: "Return to available food and select View & request." });
+          return;
+        }
+        try {
+          const [listing, org] = await Promise.all([fetchListingById(listingId), fetchOrganizationForUser(profile.id)]);
+          if (!listing) {
+            renderEmpty(container, { icon: "❓", title: "Listing not found", message: "It may have been removed." });
+            return;
+          }
+          render(listing, org);
+        } catch (error) {
+          renderError(container, { message: error.message }, load);
+        }
+      }
+
+      load();
+    </script>
+  </body>
+</html>

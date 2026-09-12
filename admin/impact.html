@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Platform-wide impact dashboard for AaharLink admins." />
+    <title>Impact | AaharLink</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
+  <body>
+    <header id="site-header" class="site-header"></header>
+
+    <main>
+      <div class="container">
+        <p class="eyebrow">Admin</p>
+        <h1>Platform impact</h1>
+        <p class="text-muted">Meals rescued, active listings, verified organizations, and average time to pickup — updated live.</p>
+
+        <div class="stat-grid" id="stat-grid"></div>
+      </div>
+    </main>
+
+    <footer id="site-footer" class="site-footer"></footer>
+    <script type="module" src="../js/shared.js"></script>
+    <script type="module">
+      import { requireRole, renderLoading, renderError } from "../js/shared.js";
+      import { fetchImpactStats } from "../js/requests.js";
+
+      const statGrid = document.getElementById("stat-grid");
+
+      async function load() {
+        renderLoading(statGrid, "Loading impact stats…");
+        const profile = await requireRole("admin");
+        if (!profile) return;
+        try {
+          const stats = await fetchImpactStats();
+          statGrid.innerHTML = `
+            <div class="stat-card"><div class="stat-label">Meals rescued</div><div class="stat-value">${stats.mealsRescued}</div></div>
+            <div class="stat-card"><div class="stat-label">Active listings</div><div class="stat-value">${stats.activeListings}</div></div>
+            <div class="stat-card"><div class="stat-label">Verified organizations</div><div class="stat-value">${stats.verifiedOrgs}</div></div>
+            <div class="stat-card"><div class="stat-label">Avg time to pickup</div><div class="stat-value">${stats.avgTimeToPickupMinutes !== null ? stats.avgTimeToPickupMinutes + " min" : "—"}</div></div>
+          `;
+        } catch (error) {
+          renderError(statGrid, { message: error.message }, load);
+        }
+      }
+
+      load();
+    </script>
+  </body>
+</html>

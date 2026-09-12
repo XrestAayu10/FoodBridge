@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Register as a food supplier on AaharLink." />
+    <title>Register as a supplier | AaharLink</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header id="site-header" class="site-header"></header>
+
+    <main>
+      <div class="container auth-shell">
+        <div class="card">
+          <p class="eyebrow">Supplier registration</p>
+          <h1>List your surplus food</h1>
+
+          <div class="role-picker">
+            <a href="register-supplier.html" style="border-color:var(--accent); color:var(--accent-dark); background:var(--accent-soft);">Supplier</a>
+            <a href="register-org.html">Organization</a>
+          </div>
+
+          <div id="form-error" class="form-error-banner hidden"></div>
+
+          <form id="register-form" novalidate>
+            <div class="form-group">
+              <label for="name">Business / contact name</label>
+              <input id="name" name="name" type="text" required autocomplete="name" />
+            </div>
+            <div class="form-group">
+              <label for="email">Email</label>
+              <input id="email" name="email" type="email" required autocomplete="email" />
+            </div>
+            <div class="form-group">
+              <label for="phone">Phone</label>
+              <input id="phone" name="phone" type="tel" autocomplete="tel" />
+            </div>
+            <div class="form-group">
+              <label><input name="sharePhoneOnAccept" type="checkbox" /> Share my phone number only with an accepted pickup partner.</label>
+              <p class="field-hint">Your number stays hidden before a request is accepted.</p>
+            </div>
+            <div class="form-group">
+              <label for="password">Password</label>
+              <input id="password" name="password" type="password" required minlength="6" autocomplete="new-password" />
+              <p class="field-hint">At least 6 characters.</p>
+            </div>
+            <button class="btn btn-primary btn-block" id="submit-button" type="submit">Create supplier account</button>
+          </form>
+
+          <p class="auth-switch">Already registered? <a href="login.html">Log in</a></p>
+        </div>
+      </div>
+    </main>
+
+    <footer id="site-footer" class="site-footer"></footer>
+    <script type="module" src="js/shared.js"></script>
+    <script type="module">
+      import { registerUser } from "./js/auth.js";
+      import { showToast } from "./js/shared.js";
+
+      const form = document.getElementById("register-form");
+      const errorBanner = document.getElementById("form-error");
+      const submitButton = document.getElementById("submit-button");
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        errorBanner.classList.add("hidden");
+        submitButton.disabled = true;
+        submitButton.textContent = "Creating account…";
+        try {
+          const data = new FormData(form);
+          await registerUser({
+            name: data.get("name"),
+            email: data.get("email"),
+            phone: data.get("phone"),
+            sharePhoneOnAccept: data.get("sharePhoneOnAccept") === "on",
+            password: data.get("password"),
+            role: "supplier",
+          });
+          showToast("Account created! Redirecting to your dashboard…", "success");
+          setTimeout(() => (window.location.href = "supplier/dashboard.html"), 800);
+        } catch (error) {
+          errorBanner.textContent = error.message;
+          errorBanner.classList.remove("hidden");
+          submitButton.disabled = false;
+          submitButton.textContent = "Create supplier account";
+        }
+      });
+    </script>
+  </body>
+</html>
