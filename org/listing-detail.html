@@ -30,7 +30,7 @@
 
       const container = document.getElementById("detail-container");
       const queryListingId = new URLSearchParams(window.location.search).get("id");
-      const listingId = queryListingId || sessionStorage.getItem("aaharlink-selected-listing-id");
+      const listingId = queryListingId || sessionStorage.getItem("foodbridge-selected-listing-id");
 
       if (listingId && !queryListingId) {
         const recoveredUrl = new URL(window.location.href);

@@ -53,9 +53,9 @@ The header, navigation, and footer are never duplicated in markup — every page
    ```
 
    Find the `service_role` key under **Project Settings → Data API**. This key bypasses Row Level Security — only ever use it locally in this script, never in browser code or committed files. This creates:
-   - `admin@aaharlink.demo` (admin)
-   - `supplier@aaharlink.demo` (supplier, with 2 sample food listings)
-   - `org@aaharlink.demo` (organization, **pre-approved**)
+   - `admin@foodbridge.demo` (admin)
+   - `supplier@foodbridge.demo` (supplier, with 2 sample food listings)
+   - `org@foodbridge.demo` (organization, **pre-approved**)
 
    All three use the password `Demo1234!`. Log in at `login.html` with any of them.
 

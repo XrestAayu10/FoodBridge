@@ -114,7 +114,7 @@
       container.addEventListener("click", (event) => {
         const link = event.target.closest("[data-listing-id]");
         if (!link) return;
-        sessionStorage.setItem("aaharlink-selected-listing-id", link.dataset.listingId);
+        sessionStorage.setItem("foodbridge-selected-listing-id", link.dataset.listingId);
       });
 
       init();

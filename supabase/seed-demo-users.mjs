@@ -82,16 +82,16 @@ async function insertRow(table, row) {
 
 async function main() {
   console.log("Creating demo admin…");
-  const adminAuth = await createAuthUser({ email: "admin@aaharlink.demo", password: "Demo1234!", name: "Aahar Admin", role: "admin" });
-  await upsertRow("users", { id: adminAuth.id, name: "Aahar Admin", email: "admin@aaharlink.demo", role: "admin", status: "active" });
+  const adminAuth = await createAuthUser({ email: "admin@foodbridge.demo", password: "Demo1234!", name: "FoodBridge Admin", role: "admin" });
+  await upsertRow("users", { id: adminAuth.id, name: "FoodBridge Admin", email: "admin@foodbridge.demo", role: "admin", status: "active" });
 
   console.log("Creating demo supplier…");
-  const supplierAuth = await createAuthUser({ email: "supplier@aaharlink.demo", password: "Demo1234!", name: "Himalayan Catering", role: "supplier" });
-  await upsertRow("users", { id: supplierAuth.id, name: "Himalayan Catering", email: "supplier@aaharlink.demo", phone: "+977-9800000001", share_phone_on_accept: true, role: "supplier", status: "active" });
+  const supplierAuth = await createAuthUser({ email: "supplier@foodbridge.demo", password: "Demo1234!", name: "Himalayan Catering", role: "supplier" });
+  await upsertRow("users", { id: supplierAuth.id, name: "Himalayan Catering", email: "supplier@foodbridge.demo", phone: "+977-9800000001", share_phone_on_accept: true, role: "supplier", status: "active" });
 
   console.log("Creating demo organization…");
-  const orgAuth = await createAuthUser({ email: "org@aaharlink.demo", password: "Demo1234!", name: "Hope Relief Nepal", role: "organization" });
-  await upsertRow("users", { id: orgAuth.id, name: "Hope Relief Nepal", email: "org@aaharlink.demo", phone: "+977-9800000002", share_phone_on_accept: true, role: "organization", status: "active" });
+  const orgAuth = await createAuthUser({ email: "org@foodbridge.demo", password: "Demo1234!", name: "Hope Relief Nepal", role: "organization" });
+  await upsertRow("users", { id: orgAuth.id, name: "Hope Relief Nepal", email: "org@foodbridge.demo", phone: "+977-9800000002", share_phone_on_accept: true, role: "organization", status: "active" });
 
   // Organizations table has its own id, so check for an existing row first.
   const existingOrgResponse = await fetch(`${SUPABASE_URL}/rest/v1/organizations?user_id=eq.${orgAuth.id}&select=id`, { headers: authHeaders });
@@ -130,9 +130,9 @@ async function main() {
   }
 
   console.log("\nDone! Demo accounts (password for all: Demo1234!):");
-  console.log("  Admin:        admin@aaharlink.demo");
-  console.log("  Supplier:     supplier@aaharlink.demo");
-  console.log("  Organization: org@aaharlink.demo  (pre-approved)");
+  console.log("  Admin:        admin@foodbridge.demo");
+  console.log("  Supplier:     supplier@foodbridge.demo");
+  console.log("  Organization: org@foodbridge.demo  (pre-approved)");
 }
 
 main().catch((error) => {
